@@ -1,0 +1,637 @@
+:root {
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out: cubic-bezier(0.19, 1, 0.22, 1);
+  /* Figma frame playlist @ 750 × 1624 → phone 390 × 844 */
+  --figma-w: 750px;
+  --figma-h: 1624px;
+  --phone-w: 390px;
+  --phone-h: 844px;
+  --scale: 0.52;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body.shell-body {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: #0d0d0f;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.phone-preview {
+  position: relative;
+  padding: 10px;
+  border-radius: 54px;
+  background: linear-gradient(145deg, #3a3a3e 0%, #1c1c1e 45%, #2a2a2e 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 24px 64px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+
+.phone-screen {
+  position: relative;
+  width: var(--phone-w);
+  height: var(--phone-h);
+  border-radius: 44px;
+  overflow: hidden;
+  background: #000;
+  isolation: isolate;
+}
+
+.phone-home-indicator {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  z-index: 50;
+  transform: translateX(-50%);
+  width: 134px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+
+.view {
+  position: absolute;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+}
+
+.view--playlist {
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  transform: scale(1);
+  transition: opacity 0.5s var(--ease-out), transform 0.65s var(--ease-expo);
+}
+
+.view--playlist.active {
+  display: block;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.view--playlist.exit {
+  opacity: 0;
+  transform: scale(1.03);
+  pointer-events: none;
+}
+
+/* ========== Figma 画布缩放 ========== */
+.playlist-viewport {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.playlist-stage {
+  position: relative;
+  width: 750px;
+  height: 1624px;
+  transform: scale(0.52);
+  transform-origin: top left;
+  background: #000;
+  --disc-diameter: 726px;
+  --disc-radius: calc(var(--disc-diameter) / 2);
+  --disc-left: 300px;
+  --disc-top: -220px;
+  /* 与 ambient-shader 色块一致 */
+  --fluid-peach: #ffb17a;
+  --fluid-light-purple: #8c7efd;
+  --fluid-center: #cb55a4;
+  --disc-spin-duration: 22s;
+  --disc-center-ratio: 0.44;
+}
+
+@keyframes figma-disc-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes figma-disc-center-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.figma-layer {
+  position: absolute;
+  pointer-events: none;
+}
+
+.figma-layer--bg {
+  inset: 0;
+  width: 750px;
+  height: 1624px;
+  object-fit: cover;
+  z-index: 0;
+}
+
+/* 盖住 image-6 内嵌的状态栏 + 导航（Figma 约 88+88px） */
+.figma-bg-top-wipe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 750px;
+  height: 176px;
+  z-index: 1;
+  background: linear-gradient(180deg, #000 0%, #000 78%, rgba(0, 0, 0, 0) 100%);
+  pointer-events: none;
+}
+
+/* 背景+遮罩 · 2:18735 */
+.figma-layer--hero-mask {
+  left: 0;
+  top: 0;
+  width: 750px;
+  height: 514px;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.figma-hero-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.2);
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* 完整圆形流体光盘 */
+.figma-hero-disc {
+  position: absolute;
+  left: var(--disc-left);
+  top: var(--disc-top);
+  width: var(--disc-diameter);
+  height: var(--disc-diameter);
+  border-radius: 50%;
+  overflow: hidden;
+  z-index: 4;
+  pointer-events: none;
+  isolation: isolate;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.45),
+    0 0 48px rgba(140, 126, 253, 0.18),
+    inset 0 0 120px rgba(0, 0, 0, 0.28),
+    inset 0 0 32px rgba(255, 255, 255, 0.08);
+  transform-origin: center center;
+  animation: figma-disc-spin var(--disc-spin-duration) linear infinite;
+  will-change: transform;
+}
+
+.figma-hero-disc::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow:
+    inset 0 0 0 2px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 6px rgba(255, 255, 255, 0.05);
+}
+
+.figma-hero-disc-rings {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: soft-light;
+}
+
+.figma-hero-disc-rings__grooves circle {
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.figma-hero-ambient {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.figma-hero-ambient canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scale(1.04);
+  transform-origin: center center;
+}
+
+/* 细沟槽纹理（浅色 1px 等效、整体 50% 透明） */
+.figma-hero-disc-vinyl {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.5;
+  background:
+    repeating-radial-gradient(
+      circle at 50% 50%,
+      transparent 0,
+      transparent 0.2%,
+      rgba(255, 255, 255, 0.55) 0.2%,
+      rgba(255, 255, 255, 0.55) 0.47%,
+      transparent 0.47%,
+      transparent 0.75%
+    ),
+    repeating-radial-gradient(
+      circle at 50% 50%,
+      transparent 0,
+      transparent 0.55%,
+      rgba(255, 255, 255, 0.35) 0.55%,
+      rgba(255, 255, 255, 0.35) 0.82%,
+      transparent 0.82%,
+      transparent 1.35%
+    ),
+    conic-gradient(
+      from 200deg at 50% 50%,
+      transparent 0deg,
+      rgba(255, 255, 255, 0.12) 24deg,
+      transparent 48deg,
+      transparent 360deg
+    ),
+    radial-gradient(
+      circle at 72% 28%,
+      rgba(255, 255, 255, 0.14) 0%,
+      rgba(255, 255, 255, 0.05) 16%,
+      transparent 28%
+    );
+  mix-blend-mode: soft-light;
+}
+
+.figma-hero-disc-vinyl::before,
+.figma-hero-disc-vinyl::after {
+  content: none;
+}
+
+/* 盖住底图自带的中心图标（在 shader 之上） */
+.figma-hero-hub-cover {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--disc-center-ratio) * 100%);
+  height: calc(var(--disc-center-ratio) * 100%);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  z-index: 1;
+  pointer-events: none;
+  background: var(--fluid-center);
+}
+
+/* 光盘中心圆（相对光盘定位，随盘旋转） */
+.figma-hero-disc-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--disc-center-ratio) * 100%);
+  height: calc(var(--disc-center-ratio) * 100%);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  z-index: 4;
+  pointer-events: none;
+  background: var(--fluid-center);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: none;
+}
+
+.figma-hero-grad {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.figma-hero-grad--bottom {
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0) 56.42%,
+    rgba(0, 0, 0, 0.4) 72%,
+    rgba(0, 0, 0, 0.8) 88%,
+    #000 100%
+  );
+}
+
+.figma-hero-grad--top {
+  top: 0;
+  bottom: 65.76%;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0) 95.17%
+  );
+}
+
+/* 歌单信息 · 2:18744 */
+.figma-layer--meta {
+  left: 0;
+  top: 426px;
+  width: 750px;
+  height: 156px;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 0 32px 2px;
+}
+
+.figma-meta-title {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 48px;
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.figma-meta-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.figma-meta-chevron {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  display: block;
+  object-fit: contain;
+}
+
+.figma-meta-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.figma-meta-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.figma-meta-user-text {
+  font-size: 24px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+}
+
+.figma-meta-user-text span:first-child {
+  line-height: 36px;
+}
+
+/* iOS 状态栏（两页共用，浮在手机框顶部） */
+.ios-status-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: flex-end;
+  height: 54px;
+  padding: 14px 28px 8px;
+  color: #fff;
+  pointer-events: none;
+}
+
+.ios-status-bar__time {
+  grid-column: 1;
+  justify-self: start;
+  font-family: -apple-system, 'SF Pro Text', 'Inter', system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ios-status-bar__island {
+  grid-column: 2;
+  width: 126px;
+  height: 37px;
+  margin-bottom: -4px;
+  border-radius: 20px;
+  background: #000;
+}
+
+.ios-status-bar__trailing {
+  grid-column: 3;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ios-icon--cellular { width: 19px; height: 12px; }
+.ios-icon--wifi { width: 17px; height: 12px; }
+.ios-icon--battery { width: 27px; height: 13px; }
+
+/* 导航栏 + 用户上传图标 */
+.app-nav {
+  position: absolute;
+  top: 54px;
+  left: 0;
+  right: 0;
+  z-index: 39;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px 10px;
+  pointer-events: auto;
+}
+
+.app-nav__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-nav__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-nav__btn:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.app-nav__icon {
+  width: 24px;
+  height: 24px;
+  display: block;
+  object-fit: contain;
+}
+
+/* JOJO Podcast pill · 2:19683 */
+.figma-layer--pill {
+  left: calc(var(--disc-left) + var(--disc-diameter) / 2 + 16px);
+  top: calc(var(--disc-top) + var(--disc-diameter) * 0.78);
+  width: auto;
+  min-height: 80px;
+  padding: 12px 48px;
+  transform: translateX(-50%);
+  border-radius: 100px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 12;
+  pointer-events: none;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* 渐变模拟毛玻璃，避免 backdrop-filter 在底边产生 1px 亮线 */
+.figma-layer--pill::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 100px;
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(88, 52, 108, 0.55) 40%,
+    rgba(42, 22, 52, 0.72) 100%
+  );
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  z-index: 0;
+}
+
+.figma-pill-text {
+  position: relative;
+  z-index: 1;
+  font-family: 'Instrument Serif', 'Chapman Test', 'Songti SC', serif;
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 2px;
+  color: #fff;
+  white-space: nowrap;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* 点击热区：遮罩 + 唱片 + 胶囊 */
+.figma-hero-hit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 750px;
+  height: 514px;
+  z-index: 20;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.playlist-stage:has(.figma-hero-hit:active) .figma-layer--pill {
+  transform: translateX(-50%) scale(0.98);
+}
+
+/* ========== 播放器（自下而上展开） ========== */
+.view--player {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  width: 100%;
+  height: 100%;
+  display: none;
+  --status-bar-h: 54px;
+  background: #fbe2d0;
+  transform: translateY(100%);
+  transition: transform 0.68s var(--ease-expo);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.view--player.is-mounted {
+  display: block;
+  opacity: 1;
+  visibility: visible;
+}
+
+.view--player.active {
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.view--player.exit {
+  transform: translateY(100%);
+  pointer-events: none;
+}
+
+.player-frame {
+  position: absolute;
+  top: var(--status-bar-h);
+  left: 0;
+  width: 100%;
+  height: calc(100% - var(--status-bar-h));
+  border: none;
+  display: block;
+  background: #fbe2d0;
+}
+
+/* 播放器：色块顶底铺满，状态栏浮在 WebGL 上 */
+.phone-screen.is-player-view .player-frame {
+  top: 0;
+  height: 100%;
+}
+
+.phone-screen.is-player-view .ios-status-bar {
+  color: #fff;
+  background: transparent;
+}
+
+.phone-screen.is-player-view .ios-status-bar__island {
+  background: #000;
+}
+
+.transition-flash {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view--player {
+    transition-duration: 0.01ms;
+  }
+}

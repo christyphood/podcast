@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Lucky - Jason Mraz · Aero Player</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="assets/vendor/three.min.js"></script>
+<script src="ambient-shader.js"></script>
+<style>
+  :root{
+    --bg-color:#FBE2D0;
+    --ink-primary:#2F36F1;
+    --ink-accent:#F949E0;
+    --ink-muted:rgba(47,54,241,.45);
+    --ink-faint:rgba(47,54,241,.18);
+    --live:#1a9b52;
+    --font-serif:'Instrument Serif', serif;
+    --font-sans:'Inter', sans-serif;
+    --border-style:1px solid var(--ink-primary);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;user-select:none;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;background:var(--bg-color);color:var(--ink-primary);overflow:hidden;display:flex;justify-content:center;align-items:center;font-family:var(--font-sans)}
+  html.is-embed, html.is-embed body{background:var(--bg-color);padding:0;display:block}
+  html.is-embed #app-frame{max-width:none;width:100%;height:100%;background:var(--bg-color)}
+
+  #app-frame{
+    width:100%;height:100%;max-width:500px;background:var(--bg-color);
+    position:relative;display:flex;flex-direction:column;overflow:hidden;
+  }
+
+  .player-stage{flex:1;display:flex;flex-direction:column;min-height:0}
+
+  html.is-embed .player-stage{
+    position:relative;
+    flex:1;
+    min-height:0;
+    height:100%;
+    overflow:hidden;
+  }
+
+  .ambient-viewport{
+    --beat-scale:1;
+    position:relative;margin:12px 12px 0 12px;
+    flex:0 0 min(48vh, 340px);min-height:260px;
+    border-top-left-radius:60px;border-top-right-radius:60px;
+    overflow:hidden;display:flex;flex-direction:column;
+  }
+  html.is-embed .ambient-viewport{
+    position:absolute;
+    inset:0;
+    margin:0;
+    width:100%;
+    height:100%;
+    min-height:280px;
+    flex:none;
+    border-radius:0;
+    z-index:0;
+  }
+  html.is-embed .viewport-fade{
+    display:block;
+    height:140px;
+  }
+  #webgl-container{position:absolute;inset:0;z-index:0}
+  .dot-grid{
+    position:absolute;inset:0;z-index:1;pointer-events:none;
+    background-image:radial-gradient(circle, rgba(251,226,208,.55) 1px, transparent 1px);
+    background-size:14px 14px;opacity:.35;mix-blend-mode:overlay;
+  }
+  .viewport-fade{position:absolute;bottom:0;left:0;width:100%;height:100px;background:linear-gradient(to top, var(--bg-color) 0%, transparent 100%);z-index:2}
+
+  .player-header{
+    position:relative;z-index:5;display:flex;align-items:center;gap:12px;
+    padding:20px 20px 8px 20px;
+  }
+  html.is-embed .player-header{
+    padding-top:62px;
+  }
+  .header-copy{flex:1;min-width:0}
+  .channel-title{
+    font-family:var(--font-sans);font-size:11px;font-weight:700;
+    letter-spacing:.04em;line-height:1.2;
+  }
+  .channel-status{
+    display:flex;align-items:center;gap:6px;margin-top:4px;
+    font-size:11px;font-weight:600;color:var(--live);
+  }
+  .status-dot{
+    width:6px;height:6px;border-radius:50%;background:var(--live);
+    animation:status-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes status-pulse{
+    0%,100%{opacity:1;transform:scale(1)}
+    50%{opacity:.45;transform:scale(.85)}
+  }
+  .collapse-btn{
+    width:36px;height:36px;border-radius:50%;border:var(--border-style);
+    background:rgba(251,226,208,.65);backdrop-filter:blur(4px);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+  }
+  .collapse-btn svg{width:14px;height:14px}
+
+  .wave-stage{
+    position:relative;z-index:4;flex:1;display:flex;align-items:center;justify-content:center;
+    padding:8px 16px 12px 16px;
+  }
+  .wave-canvas{width:100%;height:88px;display:block}
+
+  .starburst-overlay{
+    position:absolute;top:38%;left:50%;
+    transform:translate(-50%,-50%) scale(var(--beat-scale));
+    z-index:3;width:96px;height:96px;opacity:.75;pointer-events:none;
+    transition:transform .08s ease-out;
+  }
+  .star-top-right{position:absolute;top:18px;right:18px;width:14px;height:14px;z-index:3;pointer-events:none}
+
+  .player-sheet{
+    flex:1;min-height:0;display:flex;flex-direction:column;
+    padding:0 12px 12px 12px;gap:8px;
+    animation:sheet-rise .7s cubic-bezier(.22,1,.36,1) both;
+  }
+  html.is-embed .player-sheet{
+    animation:none;
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    z-index:3;
+    flex:none;
+    max-height:0;
+    min-height:0;
+    overflow:hidden;
+    opacity:0;
+    padding:0 12px 0;
+    -webkit-overflow-scrolling:touch;
+    background:linear-gradient(180deg, rgba(251,226,208,0) 0%, var(--bg-color) 56px, var(--bg-color) 100%);
+    pointer-events:none;
+    transform:translateY(-12px);
+    transform-origin:top center;
+    transition:
+      max-height 1.05s cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 0.65s cubic-bezier(0.19, 1, 0.22, 1) 0.06s,
+      transform 1.05s cubic-bezier(0.16, 1, 0.3, 1),
+      padding 1.05s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  html.is-embed.sheet-revealed .player-sheet{
+    max-height:56%;
+    opacity:1;
+    overflow-y:auto;
+    padding:0 12px 12px;
+    pointer-events:auto;
+    transform:translateY(0);
+  }
+  html.is-embed .wave-stage{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:58%;
+    z-index:6;
+    flex:none;
+    width:100%;
+    height:88px;
+    min-height:88px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0 16px;
+    pointer-events:none;
+  }
+  html.is-embed .wave-canvas{
+    filter:drop-shadow(0 0 12px rgba(47,54,241,0.25));
+  }
+  @keyframes sheet-rise{
+    from{opacity:0;transform:translateY(28px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+
+  .episode-panel{
+    border:var(--border-style);padding:16px 16px 14px 16px;
+    background:rgba(251,226,208,.55);
+    display:flex;flex-direction:column;gap:12px;
+  }
+  .episode-title{
+    font-family:var(--font-serif);font-size:clamp(28px, 7vw, 36px);
+    line-height:.95;letter-spacing:.06em;margin:0;
+  }
+  .episode-copy{display:flex;flex-direction:column;gap:10px}
+  .episode-desc{
+    font-size:13px;font-weight:500;color:var(--ink-muted);letter-spacing:.03em;
+    margin:0;
+  }
+
+  .controls-row{display:flex;align-items:center;gap:12px}
+  .play-toggle{
+    width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;
+    background:var(--ink-primary);color:var(--bg-color);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    transition:transform .15s ease;
+  }
+  .play-toggle:active{transform:scale(.94)}
+  .play-toggle svg{width:16px;height:16px}
+  .progress-wrap{flex:1;min-width:0}
+  .progress-track{
+    height:3px;background:var(--ink-faint);position:relative;cursor:pointer;
+  }
+  .progress-fill{
+    height:100%;width:0;background:var(--ink-primary);
+    transition:width .08s linear;
+  }
+  .progress-times{
+    margin-top:6px;font-size:10px;font-weight:600;color:var(--ink-muted);
+    font-variant-numeric:tabular-nums;text-align:right;letter-spacing:.02em;
+  }
+
+  .transcript-module{
+    border:var(--border-style);flex:1;min-height:0;display:flex;flex-direction:column;
+    background-image:radial-gradient(circle, var(--ink-faint) 1px, transparent 1px);
+    background-size:12px 12px;
+    background-color:rgba(251,226,208,.35);
+  }
+  .transcript-label{
+    padding:10px 12px 0 12px;
+    font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;
+  }
+  .transcript-scroll{
+    flex:1;overflow-y:auto;padding:8px 12px 12px 12px;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .transcript-scroll::-webkit-scrollbar{display:none}
+  .scroll-list{display:flex;flex-direction:column;gap:10px}
+  .scroll-line{
+    font-size:18px;font-weight:500;line-height:1.45;
+    color:var(--ink-muted);opacity:.45;
+    transition:color .28s ease, font-weight .28s ease, opacity .28s ease, font-size .28s ease;
+  }
+  .scroll-line.is-intro{font-size:18px;line-height:1.5}
+  .scroll-line.is-past{
+    color:var(--ink-muted);font-weight:500;opacity:.65;
+  }
+  .scroll-line.is-active{
+    color:var(--ink-primary);font-weight:700;font-size:20px;opacity:1;
+  }
+  .scroll-line.is-intro.is-active{font-size:20px}
+
+  .starburst-overlay line,.starburst-overlay path{stroke:var(--bg-color);stroke-width:1px;fill:none}
+  .star-top-right polygon{fill:var(--bg-color);stroke:none}
+  .collapse-btn svg path{stroke:var(--ink-primary);fill:none}
+  .play-toggle svg{fill:currentColor;stroke:none}
+
+  .vip-gate{
+    position:absolute;inset:0;z-index:100;
+    display:flex;align-items:center;justify-content:center;
+    padding:20px 18px;
+    opacity:0;visibility:hidden;pointer-events:none;
+    transition:opacity .4s ease, visibility .4s ease;
+  }
+  .vip-gate.is-visible{opacity:1;visibility:visible;pointer-events:auto}
+  .vip-gate__backdrop{
+    position:absolute;inset:0;background:rgba(0,0,0,.58);
+  }
+  /* VIP gate · Figma 10:932 */
+  .vip-gate__dialog{
+    position:relative;z-index:1;
+    width:min(calc(100% - 36px),345px);
+    background:#ffe0ca;
+    border:1px solid #2f36f1;
+    border-radius:0;
+    padding:16px 17px 20px;
+    display:flex;flex-direction:column;align-items:center;gap:12px;
+    text-align:center;
+    animation:vip-dialog-in .45s cubic-bezier(.22,1,.36,1) both;
+  }
+  @keyframes vip-dialog-in{
+    from{opacity:0;transform:translateY(16px) scale(.98)}
+    to{opacity:1;transform:translateY(0) scale(1)}
+  }
+  .vip-gate__spacer{
+    width:100%;height:22px;flex-shrink:0;
+  }
+  .vip-gate__title{
+    margin:0;width:100%;
+    font-family:'Times New Roman',var(--font-serif),serif;font-weight:400;
+    font-size:clamp(28px,6.93vw,52px);line-height:1;
+    letter-spacing:2.16px;color:#2f36f1;
+  }
+  .vip-gate__body{
+    margin:0;width:100%;max-width:454px;
+    font-family:'Times New Roman',var(--font-serif),serif;font-weight:400;
+    font-size:clamp(16px,3.73vw,28px);line-height:1.22;
+    letter-spacing:2.16px;color:#2f36f1;
+    word-break:break-word;
+  }
+  .vip-gate__cta{
+    width:100%;max-width:345px;height:clamp(52px,9.47vw,71px);
+    margin:0;border:1px solid #2f36f1;border-radius:0;cursor:pointer;
+    padding:0 12px;background:#2f36f1;color:#efefef;
+    font-family:'Times New Roman',var(--font-serif),serif;
+    font-size:clamp(16px,3.2vw,24px);font-weight:700;line-height:1.425;
+    letter-spacing:2.16px;
+    transition:opacity .15s ease;
+  }
+  .vip-gate__cta:active{opacity:.9}
+  .vip-gate__spacer--tight{height:8px}
+  .vip-gate__later{
+    margin:-4px 0 5px;border:none;background:transparent;cursor:pointer;
+    font-family:'Times New Roman',var(--font-serif),serif;font-weight:400;
+    font-size:clamp(16px,3.2vw,24px);line-height:1.425;
+    color:#2f36f1;letter-spacing:2.16px;padding:0;
+  }
+</style>
+</head>
+<body>
+
+<script>
+  if (/[?&]embed=1/.test(location.search)) document.documentElement.classList.add('is-embed');
+</script>
+
+<div id="app-frame">
+  <div class="player-stage">
+    <section class="ambient-viewport" aria-label="播放视觉">
+      <div id="webgl-container" aria-hidden="true"></div>
+      <div class="dot-grid" aria-hidden="true"></div>
+      <svg class="starburst-overlay" viewBox="0 0 100 100" aria-hidden="true">
+        <line x1="50" y1="10" x2="50" y2="90"/>
+        <line x1="10" y1="50" x2="90" y2="50"/>
+        <line x1="21.7" y1="21.7" x2="78.3" y2="78.3"/>
+        <line x1="21.7" y1="78.3" x2="78.3" y2="21.7"/>
+        <circle cx="50" cy="50" r="1.5" fill="var(--bg-color)" stroke="none"/>
+      </svg>
+      <svg class="star-top-right" viewBox="0 0 24 24" aria-hidden="true">
+        <polygon points="12,0 13.5,10.5 24,12 13.5,13.5 12,24 10.5,13.5 0,12 10.5,10.5"/>
+      </svg>
+      <div class="viewport-fade" aria-hidden="true"></div>
+
+      <header class="player-header">
+        <div class="header-copy">
+          <div class="channel-title">JOJO Podcast</div>
+          <div class="channel-status" id="channelStatus">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span id="statusLabel">playing</span>
+          </div>
+        </div>
+        <button type="button" class="collapse-btn" aria-label="收起播放器">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </header>
+
+      <div class="wave-stage">
+        <canvas class="wave-canvas" id="waveCanvas" aria-hidden="true"></canvas>
+      </div>
+    </section>
+
+    <section class="player-sheet" aria-label="播客控制">
+      <article class="episode-panel">
+        <div class="episode-copy">
+          <h1 class="episode-title">Lucky - Jason Mraz</h1>
+          <p class="episode-desc">We Sing. We Dance. We Steal Things. · 2008</p>
+        </div>
+        <div class="controls-row">
+          <button type="button" class="play-toggle" id="playBtn" aria-label="播放">
+            <svg id="iconPlay" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            <svg id="iconPause" viewBox="0 0 24 24" aria-hidden="true" style="display:none">
+              <path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z"/>
+            </svg>
+          </button>
+          <div class="progress-wrap">
+            <div class="progress-track" id="progressTrack" role="slider" aria-label="播放进度" tabindex="0">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-times" id="progressTimes">0:00 / 0:00</div>
+          </div>
+        </div>
+      </article>
+
+      <article class="transcript-module">
+        <div class="transcript-label">About</div>
+        <div class="transcript-scroll" id="transcriptScroll"></div>
+      </article>
+
+    </section>
+  </div>
+
+  <div class="vip-gate" id="vipGate" aria-hidden="true">
+    <div class="vip-gate__backdrop" aria-hidden="true"></div>
+    <div class="vip-gate__dialog" role="dialog" aria-modal="true" aria-labelledby="vipGateTitle" data-node-id="10:932">
+      <div class="vip-gate__spacer" aria-hidden="true"></div>
+      <h2 class="vip-gate__title" id="vipGateTitle" data-node-id="10:935">Unlock Full Podcast</h2>
+      <p class="vip-gate__body" data-node-id="10:957">Upgrade to VIP. Get one custom JOJO podcast monthly, with stories about your playlists.</p>
+      <div class="vip-gate__spacer" aria-hidden="true"></div>
+      <button type="button" class="vip-gate__cta" id="vipGateCta" data-node-id="10:955">Start Now - HK$3/month</button>
+      <div class="vip-gate__spacer vip-gate__spacer--tight" aria-hidden="true"></div>
+      <button type="button" class="vip-gate__later" id="vipGateLater" data-node-id="10:965">Maybe Later</button>
+    </div>
+  </div>
+</div>
+
+<audio id="audio" preload="metadata" playsinline src="assets/lucky.mp3"></audio>
+<audio id="podcastAudio" preload="auto" playsinline src="JOJO%20podcast.mp3"></audio>
+
+<script>
+(function(){
+  const ABOUT_INTRO = '《Lucky》是 Jason Mraz 與 Colbie Caillat 2008 年的代表作，輕快民謠唱出日常裡的小幸運。';
+
+  const LYRIC_LINES = [
+    'Do you hear me? I\'m talking to you',
+    'Across the water, across the deep blue ocean',
+    'Under the open sky, oh my, baby I\'m trying',
+    'Yeah, I hear you in my dreams',
+    'I feel your whisper across the sea',
+    'I keep you with me in my heart',
+    'You make it easier when life gets hard',
+    'Lucky I\'m in love with my best friend',
+    'Lucky to have been where I have been',
+    'Lucky to be coming home again',
+    'Ooh-ooh, ooh-ooh, ooh-ooh-ooh',
+    'They don\'t know how long it takes',
+    'Waiting for a love like this',
+    'Every time we say goodbye',
+    'I wish we had one more kiss',
+    'I\'ll wait for you, I promise you, I will',
+    'Lucky I\'m in love with my best friend',
+    'Lucky to have been where I have been',
+    'Lucky to be coming home again',
+    'Lucky we\'re in love in every way',
+    'Lucky to have stayed where we have stayed',
+    'Lucky to be coming home someday',
+    'So I\'m sailing through the sea',
+    'To an island where we\'ll meet',
+    'You\'ll hear the music fill the air',
+    'I\'ll put a flower in your hair',
+    'Though the breezes, through the trees',
+    'They move so pretty, you\'re all I see',
+    'As the world keeps spinning \'round',
+    'You hold me right here, right now',
+    'Lucky I\'m in love with my best friend',
+    'Lucky to have been where I have been',
+    'Lucky to be coming home again',
+    'Lucky we\'re in love in every way',
+    'Lucky to have stayed where we have stayed',
+    'Lucky to be coming home someday',
+    'Ooh-ooh, ooh-ooh, ooh-ooh-ooh',
+    'Ooh-ooh, ooh-ooh, ooh-ooh-ooh',
+    'Ooh-ooh',
+    'Oh, yeah',
+    'So love you'
+  ];
+  let scrollItems = [];
+
+  const audio = document.getElementById('audio');
+  const podcastAudio = document.getElementById('podcastAudio');
+  const playBtn = document.getElementById('playBtn');
+  const vipGate = document.getElementById('vipGate');
+  const vipGateCta = document.getElementById('vipGateCta');
+  const vipGateLater = document.getElementById('vipGateLater');
+  const LUCKY_FADE_SEC = 2.5;
+  const VIP_GATE_AT = 20;
+  const VIP_FADE_OUT_SEC = 1.2;
+  const iconPlay = document.getElementById('iconPlay');
+  const iconPause = document.getElementById('iconPause');
+  const progressTrack = document.getElementById('progressTrack');
+  const progressFill = document.getElementById('progressFill');
+  const progressTimes = document.getElementById('progressTimes');
+  const statusLabel = document.getElementById('statusLabel');
+  const transcriptScroll = document.getElementById('transcriptScroll');
+  const waveCanvas = document.getElementById('waveCanvas');
+  const ctx = waveCanvas.getContext('2d');
+  const ambientViewport = document.querySelector('.ambient-viewport');
+  let playing = false;
+  let duration = 190;
+  const bars = 48;
+  const heights = new Array(bars).fill(0).map(() => 0.12);
+  let audioCtx = null;
+  let gainLucky = null;
+  let gainPodcast = null;
+  let analyser = null;
+  let vipGateTriggered = false;
+  let vipGateDismissed = false;
+  let vipGateFading = false;
+  let freqData = null;
+  let fadeRaf = null;
+  let beatEnergy = 0;
+  let scaleBeat = 0;
+  let ambientApi = null;
+  let lastActiveLyricIdx = -1;
+
+  function setBeatScale(){
+    if (ambientViewport) ambientViewport.style.setProperty('--beat-scale', String(1 + scaleBeat * 0.14));
+  }
+
+  function initAudioGraph(){
+    if (audioCtx) return audioCtx;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    audioCtx = new Ctx();
+    gainLucky = audioCtx.createGain();
+    gainLucky.gain.value = 0;
+    const luckySource = audioCtx.createMediaElementSource(audio);
+    luckySource.connect(gainLucky);
+    gainLucky.connect(analyser = audioCtx.createAnalyser());
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.78;
+    analyser.connect(audioCtx.destination);
+    gainPodcast = audioCtx.createGain();
+    gainPodcast.gain.value = 1;
+    const podcastSource = audioCtx.createMediaElementSource(podcastAudio);
+    podcastSource.connect(gainPodcast);
+    gainPodcast.connect(audioCtx.destination);
+    freqData = new Uint8Array(analyser.frequencyBinCount);
+    return audioCtx;
+  }
+
+  function resetLuckyGain(){
+    if (fadeRaf) {
+      cancelAnimationFrame(fadeRaf);
+      fadeRaf = null;
+    }
+    if (gainLucky && audioCtx) {
+      const t = audioCtx.currentTime;
+      gainLucky.gain.cancelScheduledValues(t);
+      gainLucky.gain.setValueAtTime(0, t);
+    } else {
+      audio.volume = 0;
+    }
+  }
+
+  function fadeLuckyIn(){
+    if (gainLucky && audioCtx) {
+      const t = audioCtx.currentTime;
+      gainLucky.gain.cancelScheduledValues(t);
+      gainLucky.gain.setValueAtTime(0, t);
+      gainLucky.gain.linearRampToValueAtTime(1, t + LUCKY_FADE_SEC);
+      return;
+    }
+    audio.volume = 0;
+    const start = performance.now();
+    function step(now){
+      const p = Math.min(1, (now - start) / (LUCKY_FADE_SEC * 1000));
+      audio.volume = p;
+      if (p < 1) fadeRaf = requestAnimationFrame(step);
+      else fadeRaf = null;
+    }
+    fadeRaf = requestAnimationFrame(step);
+  }
+
+  async function ensureAudioRunning(){
+    initAudioGraph();
+    if (audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
+  }
+
+  function updateAudioReactive(){
+    if (!analyser || !freqData || !playing){
+      beatEnergy *= 0.92;
+      scaleBeat *= 0.9;
+      setBeatScale();
+      if (ambientApi) ambientApi.setEnergy(beatEnergy);
+      return null;
+    }
+    analyser.getByteFrequencyData(freqData);
+    const n = freqData.length;
+    const bassEnd = Math.max(6, Math.floor(n * 0.07));
+    const midEnd = Math.max(bassEnd + 1, Math.floor(n * 0.32));
+    let bass = 0, mid = 0;
+    for (let i = 0; i < bassEnd; i++) bass += freqData[i];
+    for (let i = bassEnd; i < midEnd; i++) mid += freqData[i];
+    bass /= bassEnd * 255;
+    mid /= (midEnd - bassEnd) * 255;
+    const instant = Math.min(1, bass * 0.75 + mid * 0.25);
+    beatEnergy += (instant - beatEnergy) * (instant > beatEnergy ? 0.18 : 0.1);
+    scaleBeat += (instant - scaleBeat) * (instant > scaleBeat ? 0.55 : 0.16);
+    setBeatScale();
+    if (ambientApi) ambientApi.setEnergy(beatEnergy);
+    const levels = new Array(bars);
+    for (let i = 0; i < bars; i++){
+      const i0 = Math.floor((i / bars) * n * 0.88);
+      const i1 = Math.max(i0 + 1, Math.floor(((i + 1) / bars) * n * 0.88));
+      let sum = 0;
+      for (let j = i0; j < i1; j++) sum += freqData[j];
+      levels[i] = sum / (i1 - i0) / 255;
+    }
+    return levels;
+  }
+
+  function fmt(sec){
+    if (!isFinite(sec) || sec < 0) sec = 0;
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return m + ':' + String(s).padStart(2, '0');
+  }
+
+  function syncScrollTimes(dur){
+    const all = [ABOUT_INTRO, ...LYRIC_LINES];
+    scrollItems = all.map((text, i) => ({
+      t: (i / all.length) * dur,
+      text,
+      isIntro: i === 0
+    }));
+    buildTranscript();
+  }
+
+  function buildTranscript(){
+    transcriptScroll.innerHTML = `
+      <div class="scroll-list">
+        ${scrollItems.map((item, i) => `
+          <p class="scroll-line${item.isIntro ? ' is-intro' : ''}" data-index="${i}" data-time="${item.t}">${item.text}</p>
+        `).join('')}
+      </div>
+    `;
+    lastActiveLyricIdx = -1;
+    highlightLyricAt(0, false);
+  }
+
+  const scrollEls = () => [...transcriptScroll.querySelectorAll('.scroll-line')];
+
+  function highlightLyricAt(activeIdx, scrollIntoView){
+    const lines = scrollEls();
+    if (!lines.length) return;
+    const idx = Math.max(0, Math.min(activeIdx, lines.length - 1));
+    lines.forEach((el, i) => {
+      el.classList.toggle('is-active', i === idx);
+      el.classList.toggle('is-past', i < idx);
+    });
+    if (scrollIntoView && idx !== lastActiveLyricIdx) {
+      lines[idx].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+    lastActiveLyricIdx = idx;
+  }
+
+  function setPlayingUI(on){
+    playing = on;
+    iconPlay.style.display = on ? 'none' : 'block';
+    iconPause.style.display = on ? 'block' : 'none';
+    statusLabel.textContent = on ? 'playing' : 'on hold';
+  }
+
+  function resetPlaybackPosition(){
+    audio.currentTime = 0;
+    podcastAudio.currentTime = 0;
+    lastActiveLyricIdx = -1;
+    highlightLyricAt(0, false);
+    updateProgress();
+  }
+
+  async function startPlayback(fromStart){
+    initAudioGraph();
+    await ensureAudioRunning();
+    if (fromStart) {
+      resetLuckyGain();
+      audio.currentTime = 0;
+      podcastAudio.currentTime = 0;
+      fadeLuckyIn();
+      await Promise.all([audio.play(), podcastAudio.play()]);
+    } else {
+      if (gainLucky && audioCtx) {
+        gainLucky.gain.setValueAtTime(1, audioCtx.currentTime);
+      } else {
+        audio.volume = 1;
+      }
+      await audio.play();
+    }
+    setPlayingUI(true);
+    updateProgress();
+  }
+
+  function stopPlayback(){
+    resetLuckyGain();
+    audio.pause();
+    podcastAudio.pause();
+    if (!gainLucky) audio.volume = 1;
+    setPlayingUI(false);
+  }
+
+  async function playFromStart(){
+    resetVipGateSession();
+    stopPlayback();
+    resetPlaybackPosition();
+    try {
+      await startPlayback(true);
+    } catch (_) {
+      statusLabel.textContent = 'Tap to play';
+    }
+  }
+
+  function showVipGate(){
+    if (!vipGate) return;
+    vipGate.classList.add('is-visible');
+    vipGate.setAttribute('aria-hidden', 'false');
+  }
+
+  function hideVipGate(){
+    if (!vipGate) return;
+    vipGate.classList.remove('is-visible');
+    vipGate.setAttribute('aria-hidden', 'true');
+  }
+
+  function resetVipGateSession(){
+    vipGateTriggered = false;
+    vipGateDismissed = false;
+    vipGateFading = false;
+    hideVipGate();
+  }
+
+  function rampGain(gainNode, toValue, sec){
+    if (!gainNode || !audioCtx) return;
+    const t0 = audioCtx.currentTime;
+    gainNode.gain.cancelScheduledValues(t0);
+    gainNode.gain.setValueAtTime(gainNode.gain.value, t0);
+    gainNode.gain.linearRampToValueAtTime(toValue, t0 + sec);
+  }
+
+  function waitMs(ms){
+    return new Promise(function (resolve) { window.setTimeout(resolve, ms); });
+  }
+
+  async function fadeOutAllAndPause(){
+    if (vipGateFading) return;
+    vipGateFading = true;
+    initAudioGraph();
+    await ensureAudioRunning();
+    if (gainLucky && gainPodcast && audioCtx) {
+      rampGain(gainLucky, 0, VIP_FADE_OUT_SEC);
+      rampGain(gainPodcast, 0, VIP_FADE_OUT_SEC);
+      await waitMs(VIP_FADE_OUT_SEC * 1000 + 60);
+    } else {
+      const startVol = audio.volume;
+      const steps = 12;
+      for (let i = 1; i <= steps; i++){
+        audio.volume = Math.max(0, startVol * (1 - i / steps));
+        await waitMs((VIP_FADE_OUT_SEC * 1000) / steps);
+      }
+    }
+    audio.pause();
+    podcastAudio.pause();
+    vipGateFading = false;
+    setPlayingUI(false);
+  }
+
+  async function triggerVipGate(){
+    if (vipGateTriggered || vipGateDismissed) return;
+    vipGateTriggered = true;
+    showVipGate();
+    await fadeOutAllAndPause();
+  }
+
+  async function resumeAfterVipGate(){
+    hideVipGate();
+    vipGateDismissed = true;
+    initAudioGraph();
+    await ensureAudioRunning();
+    if (gainLucky && audioCtx) {
+      const t = audioCtx.currentTime;
+      gainLucky.gain.cancelScheduledValues(t);
+      gainLucky.gain.setValueAtTime(1, t);
+    } else {
+      audio.volume = 1;
+    }
+    try {
+      await audio.play();
+      setPlayingUI(true);
+    } catch (_) {
+      statusLabel.textContent = 'Tap to play';
+    }
+  }
+
+  function updateProgress(){
+    const cur = audio.currentTime || 0;
+    const dur = audio.duration && isFinite(audio.duration) ? audio.duration : duration;
+    if (audio.duration && isFinite(audio.duration)) duration = audio.duration;
+    const pct = dur ? (cur / dur) * 100 : 0;
+    progressFill.style.width = pct + '%';
+    progressTimes.textContent = fmt(cur) + ' / ' + fmt(dur);
+    progressTrack.setAttribute('aria-valuenow', String(Math.round(pct)));
+
+    const lines = scrollEls();
+    if (!lines.length) return;
+    let activeIdx = 0;
+    for (let i = 0; i < lines.length; i++){
+      const t = parseFloat(lines[i].dataset.time) || 0;
+      if (cur >= t) activeIdx = i;
+    }
+    highlightLyricAt(activeIdx, playing);
+
+    if (playing && !vipGateTriggered && !vipGateDismissed && cur >= VIP_GATE_AT) {
+      triggerVipGate();
+    }
+  }
+
+  function resizeWave(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = waveCanvas.getBoundingClientRect();
+    waveCanvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    waveCanvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function drawWave(){
+    const w = waveCanvas.clientWidth;
+    const h = waveCanvas.clientHeight;
+    ctx.clearRect(0, 0, w, h);
+    const gap = 3;
+    const barW = Math.max(2, (w - gap * (bars - 1)) / bars);
+    const mid = h / 2;
+
+    const levels = updateAudioReactive();
+    for (let i = 0; i < bars; i++){
+      if (levels){
+        const target = 0.06 + levels[i] * 0.94;
+        heights[i] += (target - heights[i]) * 0.42;
+      } else {
+        heights[i] += (0.14 + Math.sin(Date.now() * 0.001 + i * 0.35) * 0.05 - heights[i]) * 0.08;
+      }
+      const barH = Math.max(4, heights[i] * (h * 0.82));
+      const x = i * (barW + gap);
+      ctx.fillStyle = isEmbed ? 'rgba(255, 255, 255, 0.92)' : '#FBE2D0';
+      ctx.fillRect(x, mid - barH / 2, barW, barH);
+    }
+    requestAnimationFrame(drawWave);
+  }
+
+  const collapseBtn = document.querySelector('.collapse-btn');
+  const isEmbed = document.documentElement.classList.contains('is-embed');
+
+  function scheduleWaveResize(){
+    resizeWave();
+    window.requestAnimationFrame(resizeWave);
+    window.setTimeout(resizeWave, 120);
+    window.setTimeout(resizeWave, 400);
+  }
+  if (collapseBtn && isEmbed) {
+    collapseBtn.setAttribute('aria-label', '返回歌单');
+    collapseBtn.addEventListener('click', function () {
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'aero-nav', action: 'back' }, '*');
+        return;
+      }
+      window.location.href = 'index.html';
+    });
+  }
+
+  window.addEventListener('message', function (event) {
+    if (!event.data || event.data.type !== 'aero-nav') return;
+    if (event.data.action === 'pause') {
+      resetVipGateSession();
+      stopPlayback();
+      resetPlaybackPosition();
+    }
+    if (event.data.action === 'reveal-sheet') {
+      document.documentElement.classList.add('sheet-revealed');
+      playFromStart();
+    }
+    if (event.data.action === 'collapse-sheet') {
+      document.documentElement.classList.remove('sheet-revealed');
+      resetVipGateSession();
+      stopPlayback();
+      resetPlaybackPosition();
+    }
+  });
+
+  if (vipGateCta) {
+    vipGateCta.addEventListener('click', function () {
+      resumeAfterVipGate();
+    });
+  }
+  if (vipGateLater) {
+    vipGateLater.addEventListener('click', function () {
+      hideVipGate();
+      vipGateDismissed = true;
+    });
+  }
+
+  playBtn.addEventListener('click', async () => {
+    if (audio.paused){
+      try {
+        await startPlayback(false);
+      } catch (_) {
+        statusLabel.textContent = 'Tap to play';
+      }
+    } else {
+      stopPlayback();
+    }
+  });
+
+  progressTrack.addEventListener('click', (e) => {
+    const rect = progressTrack.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    const dur = audio.duration && isFinite(audio.duration) ? audio.duration : duration;
+    audio.currentTime = ratio * dur;
+    updateProgress();
+  });
+
+  audio.addEventListener('loadedmetadata', () => {
+    if (audio.duration && isFinite(audio.duration)) syncScrollTimes(audio.duration);
+    updateProgress();
+  });
+  audio.addEventListener('timeupdate', updateProgress);
+  audio.addEventListener('ended', () => {
+    podcastAudio.pause();
+    resetLuckyGain();
+    if (!gainLucky) audio.volume = 1;
+    setPlayingUI(false);
+  });
+  audio.addEventListener('play', async () => {
+    await ensureAudioRunning();
+    setPlayingUI(true);
+  });
+  audio.addEventListener('pause', () => { if (!audio.ended) setPlayingUI(false); });
+
+  syncScrollTimes(duration);
+
+  window.addEventListener('resize', resizeWave);
+  scheduleWaveResize();
+  drawWave();
+  updateProgress();
+
+  if (!isEmbed) playFromStart();
+
+  const container = document.getElementById('webgl-container');
+  if (window.AeroAmbient && container) {
+    ambientApi = window.AeroAmbient.mount(container, { energy: 0 });
+    window.addEventListener('message', function (event) {
+      if (!event.data || event.data.type !== 'aero-nav') return;
+      if (event.data.action === 'embed-ready') {
+        scheduleWaveResize();
+        if (ambientApi) {
+          ambientApi.resize();
+          window.setTimeout(function () { ambientApi.resize(); }, 120);
+        }
+      }
+      if (event.data.action === 'reveal-sheet') {
+        document.documentElement.classList.add('sheet-revealed');
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>

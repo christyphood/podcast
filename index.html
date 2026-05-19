@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AI 播客 · Disc #1</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="playlist.css">
+  <style>
+    /* file:// 兜底 */
+    body.shell-body { min-height: 100dvh; margin: 0; display: flex; align-items: center; justify-content: center; background: #0d0d0f; }
+    .phone-preview { padding: 10px; border-radius: 54px; background: #2a2a2e; }
+    .phone-screen { width: 390px; height: 844px; border-radius: 44px; overflow: hidden; background: #000; position: relative; }
+    .view--playlist { width: 100%; height: 100%; }
+    .view--player { width: 100%; height: 100%; background: #fbe2d0; }
+    .ios-status-bar { position: absolute; top: 0; left: 0; right: 0; z-index: 50; height: 54px; }
+    .player-frame { top: 54px; height: calc(100% - 54px); position: absolute; width: 100%; left: 0; }
+    .phone-screen.is-player-view .player-frame { top: 0; height: 100%; }
+    .playlist-viewport { width: 100%; height: 100%; overflow: hidden; }
+    .playlist-stage { width: 750px; height: 1624px; transform: scale(0.52); transform-origin: top left; position: relative; }
+  </style>
+</head>
+<body class="shell-body">
+
+  <div class="phone-preview">
+    <div class="phone-screen" id="phoneScreen">
+
+      <header class="ios-status-bar" aria-hidden="true">
+        <time class="ios-status-bar__time" id="statusTime">12:32</time>
+        <div class="ios-status-bar__island" aria-hidden="true"></div>
+        <div class="ios-status-bar__trailing">
+            <svg class="ios-icon ios-icon--cellular" viewBox="0 0 18 12" aria-hidden="true">
+              <path fill="currentColor" d="M1 8.5h2.5v3H1v-3zm4.5-3H8v6H5.5v-6zm4.5-3H13v9h-3V2.5zm4.5-1.5h3v12h-3V1z"/>
+            </svg>
+            <svg class="ios-icon ios-icon--wifi" viewBox="0 0 16 12" aria-hidden="true">
+              <path fill="currentColor" d="M8 1.8c2.4 0 4.6.9 6.3 2.4l1.2-1.2C13.4 1.1 10.8 0 8 0S2.6 1.1.5 2.9L1.7 4.2C3.4 2.7 5.6 1.8 8 1.8zm0 3.6c1.5 0 2.9.6 3.9 1.6l1.2-1.2c-1.4-1.3-3.3-2.1-5.1-2.1s-3.7.8-5.1 2.1L4.1 7c1-.9 2.4-1.6 3.9-1.6zm0 3.6c.8 0 1.5.3 2.1.9l2.1-2.1C11.1 6.7 9.6 6 8 6s-3.1.7-4.2 1.9L5.9 10c.6-.6 1.3-.9 2.1-.9z"/>
+            </svg>
+            <svg class="ios-icon ios-icon--battery" viewBox="0 0 27 13" aria-hidden="true">
+              <rect x=".5" y=".5" width="22" height="12" rx="3" fill="none" stroke="currentColor" stroke-opacity=".4"/>
+              <rect x="2" y="2" width="18" height="9" rx="1.5" fill="currentColor"/>
+              <path fill="currentColor" fill-opacity=".4" d="M24.5 4.5v4a1.5 1.5 0 0 0 0-4z"/>
+            </svg>
+          </div>
+      </header>
+
+      <section class="view view--playlist active" id="viewPlaylist" aria-label="歌单页">
+
+        <nav class="app-nav" aria-label="导航栏">
+          <button type="button" class="app-nav__btn" aria-label="返回">
+            <img class="app-nav__icon" src="assets/playlist/nav-back.png" alt="" width="24" height="24">
+          </button>
+          <div class="app-nav__actions">
+            <button type="button" class="app-nav__btn" aria-label="搜索">
+              <img class="app-nav__icon" src="assets/playlist/nav-search.png" alt="" width="24" height="24">
+            </button>
+            <button type="button" class="app-nav__btn" aria-label="分享">
+              <img class="app-nav__icon" src="assets/playlist/nav-share.png" alt="" width="24" height="24">
+            </button>
+          </div>
+        </nav>
+
+        <div class="playlist-viewport">
+          <div class="playlist-stage" data-figma-node="2:18733">
+
+            <img
+              class="figma-layer figma-layer--bg"
+              src="assets/playlist/image-6.png"
+              alt=""
+              width="750"
+              height="1624"
+              data-node-id="2:18734"
+            >
+
+            <!-- 遮住底图里自带的旧状态栏 / 导航，避免与上方 iOS 栏重复 -->
+            <div class="figma-bg-top-wipe" aria-hidden="true"></div>
+
+            <div class="figma-layer figma-layer--hero-mask" data-node-id="2:18735">
+              <div class="figma-hero-disc" data-node-id="2:19599" aria-hidden="true">
+                <div class="figma-hero-ambient" id="playlistAmbient"></div>
+                <div class="figma-hero-hub-cover" aria-hidden="true"></div>
+                <div class="figma-hero-disc-vinyl" aria-hidden="true"></div>
+                <svg class="figma-hero-disc-rings" viewBox="0 0 100 100" aria-hidden="true">
+                  <g class="figma-hero-disc-rings__grooves" fill="none">
+                    <circle cx="50" cy="50" r="24"/>
+                    <circle cx="50" cy="50" r="28"/>
+                    <circle cx="50" cy="50" r="32"/>
+                    <circle cx="50" cy="50" r="36"/>
+                    <circle cx="50" cy="50" r="40"/>
+                    <circle cx="50" cy="50" r="44"/>
+                    <circle cx="50" cy="50" r="47"/>
+                    <circle cx="50" cy="50" r="49.2"/>
+                  </g>
+                </svg>
+                <div class="figma-hero-disc-center" aria-hidden="true"></div>
+              </div>
+              <div class="figma-hero-dim" data-node-id="2:18737"></div>
+              <div class="figma-hero-grad figma-hero-grad--bottom" data-node-id="2:18738"></div>
+              <div class="figma-hero-grad figma-hero-grad--top" data-node-id="2:18739"></div>
+            </div>
+
+            <div class="figma-layer figma-layer--meta" data-node-id="2:18744">
+              <h1 class="figma-meta-title" data-node-id="2:18746">Disc #1</h1>
+              <p class="figma-meta-subtitle" data-node-id="2:18747">
+                <span data-node-id="2:18748">Relive your summer listening </span>
+                <img class="figma-meta-chevron" src="assets/playlist/icon-chevron-right.png" alt="" width="24" height="24" data-node-id="2:18749">
+              </p>
+              <div class="figma-meta-user" data-node-id="2:18764">
+                <img class="figma-meta-avatar" src="assets/playlist/avatar-mask.png" alt="" width="40" height="40" data-node-id="2:18766">
+                <p class="figma-meta-user-text" data-node-id="2:18770">
+                  <span data-node-id="2:18771">Christy</span><span data-node-id="2:18772"> · 10 songs · 2 hours</span>
+                </p>
+              </div>
+            </div>
+
+
+            <div class="figma-layer figma-layer--pill" data-node-id="2:19683" aria-hidden="true">
+              <span class="figma-pill-text">JOJO Podcast</span>
+            </div>
+
+            <button type="button" class="figma-hero-hit" id="heroTrigger" aria-label="进入 JOJO Podcast 播放器"></button>
+
+          </div>
+        </div>
+      </section>
+
+      <section class="view view--player" id="viewPlayer" aria-label="播放器" aria-hidden="true">
+        <iframe
+          id="playerFrame"
+          class="player-frame"
+          title="Lucky · Jason Mraz"
+          allow="autoplay"
+        ></iframe>
+      </section>
+
+      <div class="transition-flash" id="transitionFlash" aria-hidden="true"></div>
+      <div class="phone-home-indicator" aria-hidden="true"></div>
+
+    </div>
+  </div>
+
+  <script src="assets/vendor/three.min.js"></script>
+  <script src="ambient-shader.js"></script>
+  <script src="playlist-ambient.js"></script>
+  <script src="navigation.js"></script>
+</body>
+</html>

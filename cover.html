@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Aero Ambient Telemetry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root{
+    --bg-color:#FBE2D0;
+    --ink-primary:#2F36F1;
+    --ink-accent:#F949E0;
+    --font-serif:'Instrument Serif', serif;
+    --font-sans:'Inter', sans-serif;
+    --border-style:1px solid var(--ink-primary);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;user-select:none;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;background:var(--bg-color);color:var(--ink-primary);overflow:hidden;display:flex;justify-content:center;align-items:center;font-family:var(--font-sans)}
+
+  #app-frame{
+    width:100%;height:100%;max-width:500px;background:var(--bg-color);
+    position:relative;display:flex;flex-direction:column;overflow:hidden;
+  }
+
+  .ambient-viewport{
+    position:relative;width:calc(100% - 32px);margin:16px 16px 0 16px;
+    flex-grow:1;border-top-left-radius:60px;border-top-right-radius:60px;
+    overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;
+  }
+  #webgl-container{position:absolute;inset:0;z-index:0}
+
+  .starburst-overlay{position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);z-index:2;width:120px;height:120px;opacity:.9}
+  .star-top-right{position:absolute;top:24px;right:24px;width:16px;height:16px;z-index:2}
+  .viewport-fade{position:absolute;bottom:0;left:0;width:100%;height:80px;background:linear-gradient(to top, var(--bg-color) 0%, transparent 100%);z-index:1}
+
+  .typo-layer{position:relative;z-index:10;padding:0 24px;margin-top:-30px}
+  .poetic-condition{
+    font-family:var(--font-serif);font-size:clamp(48px, 12vw, 64px);line-height:.9;letter-spacing:-0.02em;
+    margin-bottom:8px;display:flex;align-items:center;gap:16px;white-space:nowrap;
+  }
+  .poetic-condition .accent{color:var(--ink-accent)}
+  .poetic-condition .line{flex-grow:1;height:1px;background:var(--ink-primary);margin-top:10px}
+  .secondary-condition{font-family:var(--font-serif);font-size:32px;text-align:right;margin-right:12px}
+
+  .structural-divider{display:flex;align-items:center;padding:24px 24px 16px 24px;gap:16px}
+  .spark-icon{width:12px;height:12px;flex-shrink:0}
+  .dashed-line{flex-grow:1;height:1px;background-image:linear-gradient(to right, var(--ink-primary) 50%, transparent 50%);background-size:16px 1px;background-repeat:repeat-x}
+
+  .data-telemetry{padding:0 16px 16px 16px;display:flex;flex-direction:column;gap:8px}
+  .telemetry-row{display:flex;gap:8px}
+  .data-module{border:var(--border-style);padding:12px;display:flex;flex-direction:column;justify-content:space-between}
+  .module-main{flex:2}
+  .module-side{flex:1}
+  .data-label{font-family:var(--font-sans);font-size:9px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:12px}
+  .data-value-large{font-family:var(--font-serif);font-size:48px;line-height:1}
+  .data-value-small{font-family:var(--font-sans);font-size:12px;font-weight:500;letter-spacing:-0.02em}
+  .temp-module{display:flex;flex-direction:row;justify-content:space-between;align-items:flex-end}
+  .temp-reading{display:flex;align-items:flex-start}
+  .temp-degree{font-family:var(--font-sans);font-size:16px;font-weight:500;margin-top:6px;margin-left:2px}
+
+  .system-footer{display:flex;border:var(--border-style);height:32px}
+  .sys-cell{border-right:var(--border-style);display:flex;align-items:center;justify-content:center;padding:0 12px;font-family:var(--font-sans);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap}
+  .sys-cell:last-child{border-right:none;flex-grow:1;justify-content:flex-end;gap:6px}
+  .brand-cell{font-weight:700;font-size:12px;letter-spacing:-0.02em}
+  .globe-icon{width:14px;height:14px}
+
+  .typo-layer svg path,.typo-layer svg polygon,
+  .structural-divider svg path,.structural-divider svg polygon,
+  .system-footer svg path,.system-footer svg line,.system-footer svg circle,.system-footer svg ellipse{stroke:var(--ink-primary);fill:none}
+  .starburst-overlay line,.starburst-overlay path{stroke:var(--bg-color);stroke-width:1px;fill:none}
+  .star-top-right polygon{fill:var(--bg-color);stroke:none}
+</style>
+</head>
+<body>
+
+<div id="app-frame">
+  <div class="ambient-viewport">
+    <div id="webgl-container"></div>
+
+    <svg class="starburst-overlay" viewBox="0 0 100 100">
+      <line x1="50" y1="10" x2="50" y2="90"/>
+      <line x1="10" y1="50" x2="90" y2="50"/>
+      <line x1="21.7" y1="21.7" x2="78.3" y2="78.3"/>
+      <line x1="21.7" y1="78.3" x2="78.3" y2="21.7"/>
+      <line x1="34.7" y1="13.4" x2="65.3" y2="86.6"/>
+      <line x1="13.4" y1="34.7" x2="86.6" y2="65.3"/>
+      <line x1="13.4" y1="65.3" x2="86.6" y2="34.7"/>
+      <line x1="34.7" y1="86.6" x2="65.3" y2="13.4"/>
+      <circle cx="50" cy="50" r="1.5" fill="var(--bg-color)" stroke="none"/>
+    </svg>
+
+    <svg class="star-top-right" viewBox="0 0 24 24">
+      <polygon points="12,0 13.5,10.5 24,12 13.5,13.5 12,24 10.5,13.5 0,12 10.5,10.5"/>
+    </svg>
+
+    <div class="viewport-fade"></div>
+  </div>
+
+  <div class="typo-layer">
+    <div class="poetic-condition">
+      <span class="accent">Lucid</span> drift <div class="line"></div>
+    </div>
+    <div class="secondary-condition">Atmospheric swell</div>
+  </div>
+
+  <div class="structural-divider">
+    <svg class="spark-icon" viewBox="0 0 24 24">
+      <polygon points="12,0 13.5,10.5 24,12 13.5,13.5 12,24 10.5,13.5 0,12 10.5,10.5" fill="var(--ink-primary)" stroke="none"/>
+    </svg>
+    <div class="dashed-line"></div>
+    <div class="dashed-line"></div>
+  </div>
+
+  <div class="data-telemetry">
+    <div class="telemetry-row">
+      <div class="data-module module-main temp-module">
+        <div>
+          <div class="data-label">Core Temp</div>
+          <div class="temp-reading">
+            <span class="data-value-large">74</span>
+            <span class="temp-degree">°F</span>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div class="data-label">Feels Like</div>
+          <div class="data-value-small">76.2°</div>
+        </div>
+      </div>
+      <div class="data-module module-side">
+        <div class="data-label">Humidity</div>
+        <div class="data-value-large" style="font-size:32px">68<span style="font-size:16px;font-family:var(--font-sans)">%</span></div>
+      </div>
+    </div>
+
+    <div class="telemetry-row">
+      <div class="data-module module-side">
+        <div class="data-label">Wind Vec</div>
+        <div class="data-value-small">SW 12kts<br>Gst 18kts</div>
+      </div>
+      <div class="data-module module-side">
+        <div class="data-label">Pressure</div>
+        <div class="data-value-small">1012 hPa<br>Rising</div>
+      </div>
+      <div class="data-module module-side">
+        <div class="data-label">UV Index</div>
+        <div class="data-value-small">4.2 Mod<br>Peak 13:00</div>
+      </div>
+    </div>
+
+    <div class="system-footer">
+      <div class="sys-cell brand-cell">AERO</div>
+      <div class="sys-cell" style="color:var(--ink-accent)">34.05°N</div>
+      <div class="sys-cell">Live</div>
+      <div class="sys-cell">
+        <svg class="globe-icon" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/>
+          <ellipse cx="12" cy="12" rx="4" ry="10"/>
+          <line x1="2" y1="12" x2="22" y2="12"/>
+          <line x1="4.5" y1="6" x2="19.5" y2="6"/>
+          <line x1="4.5" y1="18" x2="19.5" y2="18"/>
+        </svg>
+        sys.status
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const container = document.getElementById('webgl-container');
+  const scene = new THREE.Scene();
+  const camera = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+  const renderer = new THREE.WebGLRenderer({antialias:false, alpha:true});
+  container.appendChild(renderer.domElement);
+
+  const vertexShader = `
+    varying vec2 vUv;
+    void main(){ vUv = uv; gl_Position = vec4(position, 1.0); }
+  `;
+
+  const fragmentShader = `
+    uniform float u_time;
+    uniform vec2 u_resolution;
+    varying vec2 vUv;
+
+    vec3 mod289(vec3 x){return x - floor(x*(1.0/289.0))*289.0;}
+    vec2 mod289(vec2 x){return x - floor(x*(1.0/289.0))*289.0;}
+    vec3 permute(vec3 x){return mod289(((x*34.0)+1.0)*x);}
+
+    float snoise(vec2 v){
+      const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+      vec2 i  = floor(v + dot(v, C.yy));
+      vec2 x0 = v - i + dot(i, C.xx);
+      vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+      vec4 x12 = x0.xyxy + C.xxzz; x12.xy -= i1;
+      i = mod289(i);
+      vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+      vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+      m = m*m; m = m*m;
+      vec3 x = 2.0*fract(p*C.www) - 1.0;
+      vec3 h = abs(x) - 0.5;
+      vec3 ox = floor(x + 0.5);
+      vec3 a0 = x - ox;
+      m *= 1.79284291400159 - 0.85373472095314*(a0*a0 + h*h);
+      vec3 g;
+      g.x  = a0.x*x0.x + h.x*x0.y;
+      g.yz = a0.yz*x12.xz + h.yz*x12.yw;
+      return 130.0*dot(m,g);
+    }
+
+    float random(vec2 st){ return fract(sin(dot(st.xy, vec2(12.9898,78.233)))*43758.5453123); }
+
+    void main(){
+      vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+      vec2 st = uv; st.x *= u_resolution.x / u_resolution.y;
+      float t = u_time * 0.15;
+
+      vec2 q;
+      q.x = snoise(st + vec2(t, t));
+      q.y = snoise(st + vec2(-t, t*1.2));
+
+      vec2 r;
+      r.x = snoise(st + 2.0*q + vec2(t*1.5, t*0.8));
+      r.y = snoise(st + 2.0*q + vec2(-t*0.5, t*1.1));
+
+      float f = snoise(st + 3.0*r);
+
+      vec3 colBlue        = vec3(47.0/255.0, 54.0/255.0, 241.0/255.0);
+      vec3 colPink        = vec3(249.0/255.0, 73.0/255.0, 224.0/255.0);
+      vec3 colPeach       = vec3(255.0/255.0, 177.0/255.0, 122.0/255.0);
+      vec3 colLightPurple = vec3(140.0/255.0, 126.0/255.0, 253.0/255.0);
+
+      vec3 color = mix(colBlue, colLightPurple, clamp((f*f)*2.0, 0.0, 1.0));
+      color = mix(color, colPink, clamp(length(q)*1.5, 0.0, 1.0));
+      color = mix(color, colPeach, clamp(length(r.x)*1.2, 0.0, 1.0));
+
+      float grain = random(uv*(u_time + 10.0));
+      color += (grain - 0.5)*0.35;
+
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `;
+
+  const geometry = new THREE.PlaneGeometry(2,2);
+  const material = new THREE.ShaderMaterial({
+    vertexShader, fragmentShader,
+    uniforms:{ u_time:{value:0}, u_resolution:{value:new THREE.Vector2()} }
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  scene.add(mesh);
+
+  const resize = () => {
+    const w = container.clientWidth, h = container.clientHeight;
+    renderer.setSize(w,h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    material.uniforms.u_resolution.value.set(w,h);
+  };
+  window.addEventListener('resize', resize);
+  resize();
+
+  const clock = new THREE.Clock();
+  (function animate(){
+    requestAnimationFrame(animate);
+    material.uniforms.u_time.value = clock.getElapsedTime();
+    renderer.render(scene, camera);
+  })();
+</script>
+</body>
+</html>
