@@ -102,10 +102,10 @@ body.shell-body {
   transform: scale(0.52);
   transform-origin: top left;
   background: #000;
-  --disc-diameter: 726px;
+  --disc-diameter: 950px;
   --disc-radius: calc(var(--disc-diameter) / 2);
-  --disc-left: 300px;
-  --disc-top: -220px;
+  --disc-left: calc((var(--figma-w) - var(--disc-diameter)) / 2);
+  --disc-top: -800px;
   /* 与 ambient-shader 色块一致 */
   --fluid-peach: #ffb17a;
   --fluid-light-purple: #8c7efd;
@@ -157,6 +157,18 @@ body.shell-body {
   height: 514px;
   overflow: hidden;
   z-index: 2;
+}
+
+/* 顶部 hero 背景图（光盘、文字下层） */
+.figma-hero-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 42%;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .figma-hero-dim {
@@ -415,9 +427,9 @@ body.shell-body {
   left: 0;
   right: 0;
   z-index: 50;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: flex-end;
+  justify-content: space-between;
   height: 54px;
   padding: 14px 28px 8px;
   color: #fff;
@@ -425,8 +437,6 @@ body.shell-body {
 }
 
 .ios-status-bar__time {
-  grid-column: 1;
-  justify-self: start;
   font-family: -apple-system, 'SF Pro Text', 'Inter', system-ui, sans-serif;
   font-size: 17px;
   font-weight: 600;
@@ -434,18 +444,7 @@ body.shell-body {
   font-variant-numeric: tabular-nums;
 }
 
-.ios-status-bar__island {
-  grid-column: 2;
-  width: 126px;
-  height: 37px;
-  margin-bottom: -4px;
-  border-radius: 20px;
-  background: #000;
-}
-
 .ios-status-bar__trailing {
-  grid-column: 3;
-  justify-self: end;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -500,13 +499,13 @@ body.shell-body {
   object-fit: contain;
 }
 
-/* JOJO Podcast pill · 2:19683 */
+/* Swipe down for Podcast pill · 2:19683 */
 .figma-layer--pill {
-  left: calc(var(--disc-left) + var(--disc-diameter) / 2 + 16px);
-  top: calc(var(--disc-top) + var(--disc-diameter) * 0.78);
+  left: 50%;
+  top: calc(var(--disc-top) + var(--disc-diameter) * 0.78 + 100px);
   width: auto;
-  min-height: 80px;
-  padding: 12px 48px;
+  min-height: 64px;
+  padding: 0px 20px;
   transform: translateX(-50%);
   border-radius: 100px;
   border: none;
@@ -528,22 +527,22 @@ body.shell-body {
   border-radius: 100px;
   background: linear-gradient(
     165deg,
-    rgba(255, 255, 255, 0.18) 0%,
-    rgba(88, 52, 108, 0.55) 40%,
-    rgba(42, 22, 52, 0.72) 100%
+    rgba(255, 255, 255, 0.32) 0%,
+    rgba(120, 90, 140, 0.32) 45%,
+    rgba(72, 48, 88, 0.42) 100%
   );
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
   z-index: 0;
 }
 
 .figma-pill-text {
   position: relative;
   z-index: 1;
-  font-family: 'Instrument Serif', 'Chapman Test', 'Songti SC', serif;
-  font-size: 24px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 20px;
   font-weight: 400;
-  line-height: 1;
-  letter-spacing: 2px;
+  line-height: 1.0;
+  letter-spacing: 0.02em;
   color: #fff;
   white-space: nowrap;
   text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
@@ -628,10 +627,6 @@ body.shell-body {
 .phone-screen.is-player-view .ios-status-bar {
   color: #fff;
   background: transparent;
-}
-
-.phone-screen.is-player-view .ios-status-bar__island {
-  background: #000;
 }
 
 .transition-flash {

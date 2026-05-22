@@ -10,8 +10,12 @@
 
   const SLIDE_MS = 680;
   const LONG_PRESS_MS = 480;
-  const PULL_COMMIT_RATIO = 0.22;
-  const DISC_LONG_PRESS_PULL = 48;
+  const PULL_COMMIT_RATIO = 0.12;
+  const PULL_MIN_THRESHOLD = 32;
+  const PULL_DRAG_GAIN = 1.15;
+  const PULL_FLING_VELOCITY = 0.55;
+  const PULL_FLING_MIN_Y = 22;
+  const DISC_LONG_PRESS_PULL = 28;
 
   let currentView = 'playlist';
   let isNavigating = false;
@@ -73,7 +77,15 @@
   }
 
   function getPullThreshold() {
-    return Math.max(56, getPullMax() * PULL_COMMIT_RATIO);
+    return Math.max(PULL_MIN_THRESHOLD, getPullMax() * PULL_COMMIT_RATIO);
+  }
+
+  function shouldCommitPull(pullY, flingVelocity) {
+    const threshold = getPullThreshold();
+    if (pullY >= threshold) return true;
+    if (flingVelocity >= PULL_FLING_VELOCITY && pullY >= PULL_FLING_MIN_Y) return true;
+    if (flingVelocity >= PULL_FLING_VELOCITY * 0.65 && pullY >= threshold * 0.55) return true;
+    return false;
   }
 
   function clearPagePullStyles() {
@@ -161,7 +173,10 @@
       startY: 0,
       pullY: 0,
       moved: false,
-      fromHero: false
+      fromHero: false,
+      prevY: 0,
+      prevT: 0,
+      flingVelocity: 0
     };
 
     function canStartPull(e) {
@@ -178,14 +193,14 @@
       viewPlayer.classList.remove('is-page-pulling');
       try { viewPlaylist.releasePointerCapture(e.pointerId); } catch (_) { /* */ }
 
-      if (pagePull.pullY >= getPullThreshold()) {
+      if (shouldCommitPull(pagePull.pullY, pagePull.flingVelocity)) {
         goToPlayer();
         return;
       }
 
       cancelPagePull();
 
-      if (!pagePull.moved && pagePull.fromHero) {
+      if (!pagePull.moved && pagePull.pullY < 12 && pagePull.fromHero) {
         goToPlayer();
       }
     }
@@ -197,6 +212,9 @@
       pagePull.startY = e.clientY;
       pagePull.pullY = 0;
       pagePull.moved = false;
+      pagePull.flingVelocity = 0;
+      pagePull.prevY = e.clientY;
+      pagePull.prevT = performance.now();
       pagePull.fromHero = !!(heroTrigger && e.target.closest('#heroTrigger'));
 
       ensurePlayerFrame();
@@ -213,8 +231,16 @@
       if (!pagePull.active) return;
       const dx = e.clientX - pagePull.startX;
       const dy = e.clientY - pagePull.startY;
-      if (Math.abs(dx) > 10 || Math.abs(dy) > 6) pagePull.moved = true;
-      if (dy > 0) setPagePullOffset(dy * 0.92);
+      const now = performance.now();
+      const dt = now - pagePull.prevT;
+      if (dt > 0) {
+        const vy = (e.clientY - pagePull.prevY) / dt;
+        if (vy > pagePull.flingVelocity) pagePull.flingVelocity = vy;
+      }
+      pagePull.prevY = e.clientY;
+      pagePull.prevT = now;
+      if (Math.abs(dx) > 28 || dy > 14) pagePull.moved = true;
+      if (dy > -6) setPagePullOffset(Math.max(0, dy) * PULL_DRAG_GAIN);
     });
 
     viewPlaylist.addEventListener('pointerup', endPagePull);
