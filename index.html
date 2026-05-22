@@ -19,7 +19,7 @@
     .player-frame { top: 54px; height: calc(100% - 54px); position: absolute; width: 100%; left: 0; }
     .phone-screen.is-player-view .player-frame { top: 0; height: 100%; }
     .playlist-viewport { width: 100%; height: 100%; overflow: hidden; }
-    .playlist-stage { width: 750px; height: 1624px; transform: scale(0.52); transform-origin: top left; position: relative; }
+    .playlist-stage { width: 750px; height: 1624px; transform: scale(var(--stage-scale, 0.52)); transform-origin: top left; position: relative; }
     .view--playlist { touch-action: none; }
     .figma-disc-long-hit {
       position: absolute;
@@ -102,23 +102,25 @@
                 decoding="async"
               >
               <div class="figma-hero-disc" data-node-id="2:19599" aria-hidden="true">
-                <div class="figma-hero-ambient" id="playlistAmbient"></div>
-                <div class="figma-hero-hub-cover" aria-hidden="true"></div>
-                <div class="figma-hero-disc-vinyl" aria-hidden="true"></div>
-                <svg class="figma-hero-disc-rings" viewBox="0 0 100 100" aria-hidden="true">
-                  <g class="figma-hero-disc-rings__grooves" fill="none">
-                    <circle cx="50" cy="50" r="24"/>
-                    <circle cx="50" cy="50" r="28"/>
-                    <circle cx="50" cy="50" r="32"/>
-                    <circle cx="50" cy="50" r="36"/>
-                    <circle cx="50" cy="50" r="40"/>
-                    <circle cx="50" cy="50" r="44"/>
-                    <circle cx="50" cy="50" r="47"/>
-                    <circle cx="50" cy="50" r="49.2"/>
-                  </g>
-                </svg>
-                <div class="figma-hero-disc-center" aria-hidden="true"></div>
-                <button type="button" class="figma-disc-long-hit" id="discLongPress" aria-label="长按进入播放器" tabindex="-1"></button>
+                <div class="figma-hero-disc-spin">
+                  <div class="figma-hero-ambient" id="playlistAmbient"></div>
+                  <div class="figma-hero-hub-cover" aria-hidden="true"></div>
+                  <div class="figma-hero-disc-vinyl" aria-hidden="true"></div>
+                  <svg class="figma-hero-disc-rings" viewBox="0 0 100 100" aria-hidden="true">
+                    <g class="figma-hero-disc-rings__grooves" fill="none">
+                      <circle cx="50" cy="50" r="24"/>
+                      <circle cx="50" cy="50" r="28"/>
+                      <circle cx="50" cy="50" r="32"/>
+                      <circle cx="50" cy="50" r="36"/>
+                      <circle cx="50" cy="50" r="40"/>
+                      <circle cx="50" cy="50" r="44"/>
+                      <circle cx="50" cy="50" r="47"/>
+                      <circle cx="50" cy="50" r="49.2"/>
+                    </g>
+                  </svg>
+                  <div class="figma-hero-disc-center" aria-hidden="true"></div>
+                  <button type="button" class="figma-disc-long-hit" id="discLongPress" aria-label="长按进入播放器" tabindex="-1"></button>
+                </div>
               </div>
               <div class="figma-hero-dim" data-node-id="2:18737"></div>
               <div class="figma-hero-grad figma-hero-grad--bottom" data-node-id="2:18738"></div>

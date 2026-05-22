@@ -290,6 +290,28 @@
   setupPagePullDown();
   setupDiscLongPress();
 
+  function updatePlaylistStageScale() {
+    var viewport = document.querySelector('.playlist-viewport');
+    var stage = document.querySelector('.playlist-stage');
+    if (!viewport || !stage) return;
+    var scale = viewport.clientWidth / 750;
+    if (!Number.isFinite(scale) || scale <= 0) return;
+    stage.style.setProperty('--stage-scale', String(scale));
+    if (window.playlistAmbient && typeof window.playlistAmbient.resize === 'function') {
+      window.playlistAmbient.resize();
+    }
+  }
+
+  updatePlaylistStageScale();
+  window.addEventListener('resize', updatePlaylistStageScale);
+  if (typeof ResizeObserver !== 'undefined') {
+    var playlistViewport = document.querySelector('.playlist-viewport');
+    if (playlistViewport) {
+      var stageScaleObserver = new ResizeObserver(updatePlaylistStageScale);
+      stageScaleObserver.observe(playlistViewport);
+    }
+  }
+
   window.addEventListener('message', function (event) {
     if (!event.data || event.data.type !== 'aero-nav') return;
     if (event.data.action === 'back') goToPlaylist();
